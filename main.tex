@@ -1,5 +1,7 @@
 \documentclass{article}
 \usepackage{graphicx} % Required for inserting images
+\usepackage[hidelinks]{hyperref} % clickable URLs in the bibliography
+\usepackage{array}
 
 \title{project idea}
 \author{AAA }
@@ -63,5 +65,225 @@ The scheduler computes its decisions from:
 jobs).
 \item User's historical \textbf{estimate accuracy}.
 \end{itemize}
+
+\section{Prior Work, Evidence, and Novelty}
+
+This section checks each underlying premise of the idea against the literature
+(web search) and pins down exactly what is novel.
+
+\subsection*{Claims and evidence (the premises hold)}
+
+\paragraph{C1 --- Electricity price is strongly non-uniform across the day.}
+\emph{Supported.} Day-ahead wholesale prices follow a systematic intra-day shape:
+midday prices collapse toward $\sim$\$15/MWh while the 5--8pm evening ``neck''
+reaches $\sim$\$60/MWh on CAISO ($\sim$4$\times$ spread), and CAISO SP15 saw
+$\sim$530 hours of negative prices in 2023 ($\sim$6\% of all hours)
+\cite{r1,r2}. Demand and real-time prices swing at 5-minute granularity \cite{r3}.
+
+\paragraph{C2 --- Grid carbon intensity varies a lot over the day and by region.}
+\emph{Supported.} Hourly intensity spans $\sim$0 to $\sim$1{,}158 gCO$_2$/kWh across
+$\sim$300 zones (2024) \cite{r4}. California's intra-day swing reaches
+$\approx$19$\times$ min-to-max (solar midday dip vs.\ fossil evening ramp); China
+$\approx$1.9$\times$ \cite{r5}. Time-shifting on hourly intensity cuts footprint in
+all 65 grids studied, by 7\% (Mid-Atlantic) to 50\% (California) \cite{r6}.
+
+\paragraph{C3 --- The workload to be scheduled is large and growing.}
+\emph{Supported.} Data centres used $\sim$415 TWh ($\approx$1.5\% of global
+electricity) in 2024, projected to $\sim$945 TWh ($\approx$3\%) by 2030; their share
+of global CO$_2$ is $\sim$0.5\% today, heading to $\sim$1\% by 2030 \cite{r7,r8}.
+
+\paragraph{C4 --- Servers run at low utilization and are not energy-proportional.}
+\emph{Supported.} Servers spend most time at 10--50\% utilization, yet an idle server
+still draws roughly half its peak power --- energy does not scale down with load
+\cite{r9}. Low load is therefore both common and expensive, which is exactly the
+regime a congestion price should target.
+
+\subsection*{Prior work (a crowded field --- be precise about it)}
+
+\paragraph{A. Carbon-aware temporal shifting of flexible workloads.}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{8.4cm}}
+\hline
+\textbf{System (venue, year)} & \textbf{Headline result} \\
+\hline
+Google CICP \cite{r11} & day-ahead ``Virtual Capacity Curves'' cap high-carbon hours \\
+Wiesner, Wait Awhile \cite{r12} & up to 33.7\% (CA) / 3--11\% (EU) carbon cut by shifting \\
+CarbonScaler \cite{r13} & 51\% carbon savings vs.\ carbon-agnostic; 33\% at no slowdown \\
+Carbon Explorer \cite{r14} & scheduling + batteries + renewables $\to$ 82--100\% CFE \\
+Ecovisor \cite{r15} & software-defined energy system; defer/throttle to renewables \\
+GreenHadoop \cite{r16} & +31\% solar use, $-$39\% electricity cost vs.\ stock Hadoop \\
+GreenSlot \cite{r17} & +117\% green-energy use, $-$39\% cost vs.\ deadline scheduler \\
+\hline
+\end{tabular}
+\end{center}
+The Software Carbon Intensity metric is now an ISO standard (ISO/IEC 21031:2024)
+\cite{r18}, and carbon-aware autoscaling ships in production (Azure carbon-aware KEDA
+operator \cite{r19}). \textbf{Takeaway:} ``shift flexible jobs to clean hours'' is
+established and partly deployed --- it is not novel on its own.
+
+\paragraph{B. Electricity-price-aware and market/economic scheduling.}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{8.4cm}}
+\hline
+\textbf{System (venue, year)} & \textbf{Headline result} \\
+\hline
+Qureshi \cite{r20} & price-aware routing could cut $\sim$40\% of Akamai's energy bill \\
+Rao \cite{r21} & MIP exploiting multi-market price diversity (method) \\
+Greening GLB \cite{r22} & price-proportional-to-``brown'' makes GLB cut brown energy \\
+Lov\'asz et al.\ \cite{r23} & combined \$+carbon objective: $-$13.1\% carbon, $-$51.4\% cost \\
+Metasched.\ HPC \cite{r24} & day-ahead-market scheduling saves $\sim$\$167K/yr, $-$25\% resp.\ time \\
+Spawn \cite{r25}, Tycoon \cite{r26} & auction / proportional-share compute economies \\
+EC2 Spot \cite{r27} & spare capacity sold via market price, up to 90\% off \\
+Pretium \cite{r28} & utilization-threshold congestion pricing for WAN transfers \\
+\hline
+\end{tabular}
+\end{center}
+Each individual ingredient of our price already exists: price-aware placement
+\cite{r20,r21}, a combined dollar-and-carbon objective \cite{r23}, market/auction
+allocation \cite{r25,r26,r27}, and utilization/congestion pricing \cite{r28}.
+Lov\'asz et al.\ \cite{r23} is the closest: it already optimizes price + carbon
+jointly --- but across a network of datacenters, without a live-utilization
+congestion term, a user reputation signal, or a no-kill guarantee.
+
+\paragraph{C. User runtime estimates, accuracy, and reputation/penalty.}
+\begin{itemize}
+\item Backfilling needs user runtime estimates, and they are notoriously inaccurate.
+EASY backfilling reserves slots using user estimates \cite{r29}; in the SP2 study
+$\sim$19--20\% of jobs underestimated and would have been killed at the limit
+\cite{r29}.
+\item Estimates are crudely ``modal'': $\sim$20 distinct values cover $\sim$90\% of
+jobs (round numbers + the queue max), so they barely distinguish jobs \cite{r30}.
+\item System/ML predictions beat user estimates for backfilling --- EASY++ improves
+performance up to $\sim$28\% \cite{r31}; ML predictors cut average bounded slowdown
+$\sim$28\% \cite{r35}; but ML still underestimates 20--50\% of the time, needing
+underestimation-aware loss \cite{r36}.
+\item Most important for us: the canonical fix (Tsafrir et al.\ \cite{r31}) is to
+decouple the scheduling prediction from the kill-time --- keep the user's generous
+requested wallclock as the (rarely-hit) limit while scheduling on a shorter
+prediction. This is essentially the mechanism our ``no-kill'' guarantee formalizes.
+\item Reputation/penalty has direct precedent: ``Incentives to Tighten the Runtime
+Estimates of EASY'' \cite{r34}. Sobering result: when the kill-threat was removed and
+accuracy was rewarded, only about half of users improved and overall accuracy did not
+rise much --- inaccuracy is partly inherent \cite{r32,r33}.
+\end{itemize}
+And yes --- mainstream schedulers \emph{do} kill over-limit jobs, which is the
+practice our design rejects: Slurm terminates a job past its \texttt{--time} (state
+TIMEOUT, SIGTERM then SIGKILL) \cite{r37}; PBS/Torque kills jobs exceeding walltime
+\cite{r38}.
+
+\paragraph{D. No-kill admission, deadlines, and batching.}
+\begin{itemize}
+\item Admit-and-commit (no-kill) is a solved theory problem. ``Efficient Online
+Scheduling for Deadline-Sensitive Jobs'' \cite{r40} and follow-ups give online
+mechanisms where once a job is admitted it is guaranteed to finish, never preempted
+away \cite{r41,r42}.
+\item Renewable-aware admission control that defers rather than kills already exists:
+Cucumber \cite{r39} admits a delay-tolerant job only if it can finish by its deadline
+on forecast renewable surplus, else queues it.
+\item Production schedulers defer/requeue batch work (Google Borg evicts low-priority
+batch but reschedules it \cite{r43}; Apollo coordinates $>$20K scheduling req/s
+\cite{r44}) --- whereas spot/preemptible VMs \emph{do} kill: AWS Spot gives a 2-minute
+notice \cite{r27}, GCP preemptibles are force-killed at 24h \cite{r46}.
+\item Grouping/gang scheduling improves efficiency over many small jobs by cutting
+fragmentation and per-job overhead \cite{r45}.
+\end{itemize}
+
+\subsection*{What we add (our contribution / novelty)}
+None of the four ingredients is new alone; the contribution is the combination, the
+layer, and the guarantees:
+\begin{enumerate}
+\item A single \textbf{OS-level block price} that fuses all three signals ---
+electricity price \emph{and} carbon intensity \emph{and} live local utilization ---
+as one market clearing price. Prior systems combine at most two (e.g.\ price+carbon
+across datacenters \cite{r23}, or utilization-only congestion pricing \cite{r28}); the
+utilization congestion term on a single server, justified by energy
+non-proportionality (C4) \cite{r9}, is the under-explored piece.
+\item A \textbf{per-user estimate-accuracy reputation folded into pricing/admission},
+not just into runtime prediction. The HPC line predicts runtimes \cite{r31,r35} or
+offers one-off incentives \cite{r34}; making a persistent reputation a first-class
+input to the cost function is the new twist --- tempered by the evidence that
+incentives move only $\sim$half of users \cite{r32,r33}.
+\item A \textbf{hard no-kill guarantee as a design axiom}, realized by decoupling the
+scheduling prediction from a generous kill-time \cite{r31} and by admit-and-commit
+admission control \cite{r40,r39}.
+\item Pushing the whole market down to the \textbf{OS/server scheduler} (per-block,
+per-user, per-server), versus the cluster/datacenter-network granularity of
+essentially all prior carbon/price schedulers \cite{r11,r23,r12}.
+\item An \textbf{incentive to consolidate into longer, grouped jobs}, charged per
+user-task, grounded in gang-scheduling efficiency \cite{r45}.
+\end{enumerate}
+\textbf{Framing for the defense:} novelty is the integration point (OS) + the triple
+price (price $\times$ carbon $\times$ utilization) + reputation-in-the-price + no-kill
+axiom --- not carbon-aware scheduling, market scheduling, or runtime prediction in
+isolation, each of which is prior art above.
+
+\subsection*{Caveats to state carefully}
+\begin{itemize}
+\item Closest prior art to acknowledge head-on: Lov\'asz et al.\ \cite{r23}
+(price+carbon objective), Cucumber \cite{r39} (defer-not-kill admission), and the
+EASY-incentives line \cite{r34}.
+\item The reputation lever may be weak: controlled studies show incentives improved
+only $\sim$half of users and barely moved aggregate accuracy \cite{r32,r33}; budget
+for ML-assisted prediction \cite{r31,r35} as a fallback.
+\item No-kill + deadlines + high load can be infeasible: the admit-and-commit theory
+needs sufficient capacity / selective admission \cite{r40}; be explicit about the
+admission policy that keeps the guarantee sound.
+\item Signals are external and forecast-based: price and carbon come from markets /
+WattTime / Electricity Maps and carry forecast error; the scheduler must be robust to
+it.
+\item Quantify against a real baseline: show CO$_2$/cost savings vs.\ FIFO/fair-share,
+as the carbon/price papers do (7--50\% \cite{r6}, 33.7\% \cite{r12}, 51\% \cite{r13}).
+\end{itemize}
+
+\begin{thebibliography}{99}
+
+\bibitem{r1} U.S. EIA. ``California wholesale electricity prices are higher at the beginning and end of the day.'' Today in Energy, 2017. \url{https://www.eia.gov/todayinenergy/detail.php?id=32172}
+\bibitem{r2} pv-magazine / REsurety. ``California's electricity duck curve is deepening'' ($\sim$530 negative-price hours, 2023). 2023. \url{https://pv-magazine-usa.com/2023/07/05/californias-electricity-duck-curve-is-deepening/}
+\bibitem{r3} U.S. EIA. ``Demand for electricity changes through the day.'' Today in Energy. \url{https://www.eia.gov/todayinenergy/detail.php?id=830}
+\bibitem{r4} Electricity Maps. ``New datasets 2024'' / methodology (0--1,200 gCO$_2$eq/kWh scale). \url{https://ww2.electricitymaps.com/news/new-datasets-2024}
+\bibitem{r5} ``CarbonEdge: Leveraging Mesoscale Spatial Carbon-Intensity Variations for Low Carbon Edge Computing.'' arXiv:2502.14076, 2025. \url{https://arxiv.org/abs/2502.14076}
+\bibitem{r6} Electricity Maps. ``Optimizing electricity consumption with a marginal signal'' (7--50\% footprint reduction across 65 grids). \url{https://www.electricitymaps.com/technology/optimizing-electricity-consumption-with-a-marginal-signal-may-not-reduce-its-carbon-footprint}
+\bibitem{r7} International Energy Agency. ``Energy and AI'' (data centres $\sim$415 TWh/1.5\% in 2024 $\to$ $\sim$945 TWh/3\% by 2030). 2025. \url{https://www.iea.org/reports/energy-and-ai}
+\bibitem{r8} Carbon Brief. ``AI: Five charts that put data-centre energy use and emissions into context.'' 2025. \url{https://www.carbonbrief.org/ai-five-charts-that-put-data-centre-energy-use-and-emissions-into-context/}
+\bibitem{r9} L. A. Barroso, U. H\"olzle. ``The Case for Energy-Proportional Computing.'' IEEE Computer 40(12):33--37, 2007. \url{https://research.google.com/pubs/archive/33387.pdf}
+\bibitem{r10} ``A Survey on Task Scheduling in Carbon-Aware Container Orchestration.'' arXiv:2508.05949, 2025. \url{https://arxiv.org/abs/2508.05949}
+\bibitem{r11} A. Radovanovi\'c et al. ``Carbon-Aware Computing for Datacenters.'' IEEE Trans. Power Systems 38(2):1270--1280, 2023. \url{https://arxiv.org/abs/2106.11750}
+\bibitem{r12} P. Wiesner, I. Behnke, D. Scheinert, K. Gontarska, L. Thamsen. ``Let's Wait Awhile: How Temporal Workload Shifting Can Reduce Carbon Emissions in the Cloud.'' ACM/IFIP Middleware, 2021. \url{https://arxiv.org/abs/2110.13234}
+\bibitem{r13} W. A. Hanafy, Q. Liang, N. Bashir, D. Irwin, P. Shenoy. ``CarbonScaler: Leveraging Cloud Workload Elasticity for Optimizing Carbon-Efficiency.'' SIGMETRICS, 2023. \url{https://arxiv.org/abs/2302.08681}
+\bibitem{r14} B. Acun et al. ``Carbon Explorer: A Holistic Framework for Designing Carbon Aware Datacenters.'' ASPLOS, 2023. \url{https://arxiv.org/abs/2201.10036}
+\bibitem{r15} A. Souza et al. ``Ecovisor: A Virtual Energy System for Carbon-Efficient Applications.'' ASPLOS, 2023. \url{https://arxiv.org/abs/2210.04951}
+\bibitem{r16} \'I. Goiri, K. Le, T. D. Nguyen, J. Guitart, J. Torres, R. Bianchini. ``GreenHadoop: Leveraging Green Energy in Data-Processing Frameworks.'' EuroSys, 2012. \url{https://dl.acm.org/doi/10.1145/2168836.2168843}
+\bibitem{r17} \'I. Goiri et al. ``GreenSlot: Scheduling Energy Consumption in Green Datacenters.'' SC, 2011. \url{https://ieeexplore.ieee.org/document/6114408/}
+\bibitem{r18} Green Software Foundation. ``Software Carbon Intensity (SCI)'' --- ISO/IEC 21031:2024. \url{https://sci.greensoftware.foundation/}
+\bibitem{r19} Microsoft Azure. ``carbon-aware-keda-operator.'' \url{https://github.com/Azure/carbon-aware-keda-operator}
+\bibitem{r20} A. Qureshi, R. Weber, H. Balakrishnan, J. Guttag, B. Maggs. ``Cutting the Electric Bill for Internet-Scale Systems.'' ACM SIGCOMM, 2009. \url{http://nms.csail.mit.edu/papers/sigcomm372-aqureshi.pdf}
+\bibitem{r21} L. Rao, X. Liu, L. Xie, W. Liu. ``Minimizing Electricity Cost: Optimization of Distributed Internet Data Centers in a Multi-Electricity-Market Environment.'' IEEE INFOCOM, 2010. \url{https://dblp.org/rec/conf/infocom/RaoLXL10.html}
+\bibitem{r22} Z. Liu, M. Lin, A. Wierman, S. H. Low, L. L. H. Andrew. ``Greening Geographical Load Balancing.'' ACM SIGMETRICS, 2011. \url{https://people.eng.unimelb.edu.au/llandrew/pubs/SIGMETRICS2011-geoLoadBalancing.pdf}
+\bibitem{r23} G. Lov\'asz et al. ``Scheduling workloads in a network of datacentres to reduce electricity cost and carbon footprint'' ($-$13.1\% carbon, $-$51.4\% cost). Sustainable Computing: Informatics and Systems, 2015. \url{https://www.sciencedirect.com/science/article/abs/pii/S2210537914000535}
+\bibitem{r24} D. Murali et al. ``Metascheduling of HPC Jobs in Day-Ahead Electricity Markets.'' IEEE TPDS, 2018. \url{https://arxiv.org/abs/1712.10201}
+\bibitem{r25} C. A. Waldspurger, T. Hogg, B. A. Huberman, J. O. Kephart, W. S. Stornetta. ``Spawn: A Distributed Computational Economy.'' IEEE Trans. Software Eng. 18(2), 1992. \url{http://www.waldspurger.org/carl/papers/spawn-ieee-tse-feb92.pdf}
+\bibitem{r26} K. Lai, L. Rasmusson, E. Adar, L. Zhang, B. A. Huberman. ``Tycoon: A Distributed Market-based Resource Allocation System.'' 2004/2005. \url{https://arxiv.org/abs/cs/0404013}
+\bibitem{r27} Amazon Web Services. ``EC2 Spot Instances'' and ``Spot Instance interruption notices'' (2-minute notice). \url{https://aws.amazon.com/ec2/spot/}
+\bibitem{r28} V. Jalaparti, P. Bodik, I. Menache, S. Rao, K. Makarychev, M. Caesar. ``Dynamic Pricing and Traffic Engineering for Timely Inter-Datacenter Transfers (Pretium).'' ACM SIGCOMM, 2016. \url{https://www.microsoft.com/en-us/research/wp-content/uploads/2016/08/pretium_sigcomm16.pdf}
+\bibitem{r29} A. W. Mu'alem, D. G. Feitelson. ``Utilization, Predictability, Workloads, and User Runtime Estimates in Scheduling the IBM SP2 with Backfilling.'' IEEE TPDS 12(6), 2001. \url{https://www.researchgate.net/publication/3300562}
+\bibitem{r30} D. Tsafrir, Y. Etsion, D. G. Feitelson. ``Modeling User Runtime Estimates.'' JSSPP (LNCS), 2005. \url{https://link.springer.com/chapter/10.1007/11605300_1}
+\bibitem{r31} D. Tsafrir, Y. Etsion, D. G. Feitelson. ``Backfilling Using System-Generated Predictions Rather than User Runtime Estimates.'' IEEE TPDS 18(6):789--803, 2007. \url{https://ieeexplore.ieee.org/document/4180346/}
+\bibitem{r32} C. B. Lee, Y. Schwartzman, J. Hardy, A. Snavely. ``Are User Runtime Estimates Inherently Inaccurate?'' JSSPP (LNCS 3277), 2004. \url{https://link.springer.com/chapter/10.1007/11407522_14}
+\bibitem{r33} C. B. Lee, A. Snavely. ``On the User--Scheduler Dialogue: Studies of User-Provided Runtime Estimates and Utility Functions.'' Int. J. High Performance Computing Applications, 2006. \url{https://journals.sagepub.com/doi/10.1177/1094342006068414}
+\bibitem{r34} ``Incentives to Tighten the Runtime Estimates of EASY Backfilling.'' JSSPP (LNCS), 2008. \url{https://link.springer.com/chapter/10.1007/978-3-540-92295-7_24}
+\bibitem{r35} E. Gaussier, D. Glesser, V. Reis, D. Trystram. ``Improving Backfilling by Using Machine Learning to Predict Running Times.'' SC, 2015. \url{https://hal.science/hal-01221186}
+\bibitem{r36} J. Guo, A. Nomura, R. Barton, H. Zhang, S. Matsuoka. ``Machine Learning Predictions for Underestimation of Job Runtime on HPC Systems.'' SCFA (LNCS), 2018. \url{https://link.springer.com/chapter/10.1007/978-3-319-69953-0_11}
+\bibitem{r37} SchedMD. ``Slurm Resource Limits'' (over-limit jobs $\to$ TIMEOUT, SIGTERM then SIGKILL). \url{https://slurm.schedmd.com/resource_limits.html}
+\bibitem{r38} Adaptive Computing. ``TORQUE qsub / walltime enforcement.'' \url{https://docs.adaptivecomputing.com/torque/4-0-2/Content/topics/commands/qsub.htm}
+\bibitem{r39} P. Wiesner, D. Scheinert, T. Wittkopp, L. Thamsen, O. Kao. ``Cucumber: Renewable-Aware Admission Control for Delay-Tolerant Cloud and Edge Workloads.'' Euro-Par (LNCS), 2022. \url{https://arxiv.org/abs/2205.02895}
+\bibitem{r40} B. Lucier, I. Menache, J. Naor, J. Yaniv. ``Efficient Online Scheduling for Deadline-Sensitive Jobs.'' ACM SPAA, 2013. \url{https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/spaa091-lucier.pdf}
+\bibitem{r41} P. Bod\'ik, I. Menache, J. Naor, J. Yaniv. ``Brief Announcement: Deadline-Aware Scheduling of Big-Data Processing Jobs.'' ACM SPAA, 2014. \url{https://dl.acm.org/doi/10.1145/2612669.2612702}
+\bibitem{r42} Y. Azar, I. Kalp-Shaltiel, B. Lucier, I. Menache, J. Naor, J. Yaniv. ``Truthful Online Scheduling with Commitments.'' ACM EC, 2015. \url{https://dl.acm.org/doi/10.1145/2764468.2764535}
+\bibitem{r43} A. Verma, L. Pedrosa, M. Korupolu, D. Oppenheimer, E. Tune, J. Wilkes. ``Large-scale cluster management at Google with Borg.'' EuroSys, 2015. \url{https://research.google/pubs/large-scale-cluster-management-at-google-with-borg/}
+\bibitem{r44} E. Boutin et al. ``Apollo: Scalable and Coordinated Scheduling for Cloud-Scale Computing.'' USENIX OSDI, 2014. \url{https://www.usenix.org/conference/osdi14/technical-sessions/presentation/boutin}
+\bibitem{r45} D. G. Feitelson, M. A. Jette. ``Improved Utilization and Responsiveness with Gang Scheduling.'' JSSPP (LNCS 1291), 1997. \url{https://link.springer.com/chapter/10.1007/3-540-63574-2_24}
+\bibitem{r46} Google Cloud. ``Spot VMs'' / ``Preemptible VM instances'' (24h max; $\sim$30s notice). \url{https://docs.cloud.google.com/compute/docs/instances/spot}
+
+\end{thebibliography}
 
 \end{document}
