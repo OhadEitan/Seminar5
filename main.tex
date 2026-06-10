@@ -7,27 +7,64 @@
 
 \begin{document}
 
-We want to extand os schedulers on servees.
-From sustainablity point of view.
-We suggest the following guidelines:
+\section{Idea 5: Sustainability-Aware OS Scheduling for Servers}
 
--Electricity cost is not uniform distributed throut time of day
-- we split server times to fix blocks (may be dynamic size)
-- load the cuuret utilzation of the server from 100 precent
-- punisment it is prior data on the user who want to run
-- 
+\subsection*{Introduction}
+We propose extending operating-system schedulers on servers to optimize for
+\emph{sustainability}, not just throughput or fairness. The core observation is that the cost
+of running a job is not constant: electricity prices and the carbon intensity of the grid
+vary throughout the day, and a server's available capacity changes as its utilization
+fluctuates. A scheduler that is aware of these factors can shift work toward cheaper,
+cleaner, less-congested time windows.
 
+\subsection*{Core idea}
+We divide server time into discrete \emph{blocks} (which may be fixed or dynamically sized).
+Each block has an associated cost derived from:
+\begin{itemize}
+\item \textbf{Electricity price} at that time of day, which is non-uniform across the day.
+\item \textbf{Carbon intensity} of the grid at that time (to minimize CO$_2$).
+\item \textbf{Current utilization} of the server --- the remaining capacity below 100\%.
+\end{itemize}
 
-guidlies of this scheduler:
-- no killing submitted jobs - less co2
-- when load is low the cost of running is lower. like stock market
+\noindent The result behaves like a \textbf{market}: when load is low, running a job is
+cheaper; when the server is busy or electricity is expensive, it costs more. Users are
+thereby incentivized to schedule flexible work into off-peak, low-carbon windows.
 
-user can submit request with params ( time of day when he wants, length of his hob in his point of view, acc how must he was accurate with his prior length)
+\subsection*{Scheduling guidelines}
+\begin{enumerate}
+\item No job is killed once it has been submitted and admitted.
+\item Minimize CO$_2$ emissions across all scheduled work.
+\item Price tracks load and time of day --- lower load means lower cost, like a stock market.
+\item Encourage longer, batched jobs. We want users to consolidate work so it can run as a
+group, improving efficiency.
+\end{enumerate}
 
+\subsection*{User submission}
+A user submits a job request with the following parameters:
+\begin{itemize}
+\item \textbf{Preferred time of day} --- when the user would like the job to run.
+\item \textbf{Estimated length} --- the job's expected duration, from the user's perspective.
+\item \textbf{Accuracy score} --- a measure of how accurate this user's previous length
+estimates have been (their track record).
+\end{itemize}
 
+\noindent The accuracy score feeds into a \textbf{penalty/reward (``punishment'')}
+mechanism: users with a history of accurate estimates are treated more favorably, while
+consistently inaccurate estimates incur a penalty. This discourages users from gaming the
+system with misleading job lengths.
 
+\subsection*{Scheduler inputs}
+The scheduler computes its decisions from:
+\begin{itemize}
+\item Current \textbf{load} and \textbf{utilization} of the server.
+\item \textbf{Cost of a block} and \textbf{length of a block}.
+\item \textbf{Time of day}.
+\item \textbf{Cost per user per task} (with the goal of nudging users toward longer, grouped
+jobs).
+\item User's historical \textbf{estimate accuracy}.
+\end{itemize}
 
-Scheduler functions ( load , cost of bloc, length of block, cost per user 1 task (we want user to run longer jobs as a group) Time of day, current utilization ) 
+\clearpage
 
 
 
